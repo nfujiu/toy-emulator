@@ -14,6 +14,8 @@ const (
 
 type Chip8 struct {
         cpu Cpu
+        ram Ram
+        display Display
 }
 
 func Run () {

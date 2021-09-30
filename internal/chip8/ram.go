@@ -9,6 +9,7 @@ func (r *Ram) Write(i uint16, v uint8) {
 }
 
 func (r *Ram) Load(stream []uint8) {
+		// MemoryMap: http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#memmap
 		r.loadFontset()
 
 		presetSize := uint16(0x200)

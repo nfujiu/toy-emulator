@@ -77,7 +77,7 @@ func (chip8 *Chip8) tick() {
         case 0xF:
                 println(o1, o2, o3, o4)
         default:
-                println("Unknown opcode")
+                logger.Debug("Unknown opcode")
         }
         // opcode := uint16(chip8.ram.buf[pc]) << 8 | uint16(chip8.ram.buf[pc + 1])
         // decode := opcode & 0xF000

@@ -5,6 +5,7 @@ type Cpu struct {
 		i uint16
 		sp uint8
 		pc uint16
+		stack [16]uint16
 }
 
 func (c *Cpu) Increment() {

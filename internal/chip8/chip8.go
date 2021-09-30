@@ -13,6 +13,10 @@ const (
         windowHeight float64 = 320
 )
 
+func addr(n1 uint8, n2 uint8, n3 uint8) uint16 {
+        return uint16(n1) << 8 + uint16(n2) << 4 + uint16(n3)
+}
+
 type Chip8 struct {
         cpu Cpu
         ram Ram
@@ -35,13 +39,17 @@ func (chip8 *Chip8) tick() {
         println(o3)
         println(o4)
 
+        // Chip-8 Instruction Set Architecture
+        // http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#3.1
         switch o1 {
         case 0x0:
                 println(o1, o2, o3, o4)
         case 0x1:
-                println(o1, o2, o3, o4)
+                chip8.cpu.pc = addr(o2, o3, o4)
         case 0x2:
-                println(o1, o2, o3, o4)
+                chip8.cpu.stack[chip8.cpu.sp] = pc
+                chip8.cpu.sp += 1
+                chip8.cpu.pc = addr(o2, o3, o4)
         case 0x3:
                 println(o1, o2, o3, o4)
         case 0x4:

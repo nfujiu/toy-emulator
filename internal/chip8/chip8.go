@@ -31,8 +31,22 @@ func Run () {
         imd.Rectangle(0)
 
         for !win.Closed() {
-                win.Clear(colornames.Aliceblue)
-                imd.Draw(win)
+                win.Clear(colornames.Black)
+
+                for x := 0; x < 64; x++ {
+                        for y := 0; y < 32; y++ {
+                                if x != y {
+                                        continue
+                                }
+
+                                imd := imdraw.New(nil)
+                                imd.Color = colornames.White
+                                imd.Push(pixel.V(float64(x*10), float64(320-(y*10))))
+                                imd.Push(pixel.V(float64((x+1)*10), float64(320-((y+1)*10))))
+                                imd.Rectangle(0)
+                                imd.Draw(win)
+                        }
+                }
                 win.Update()
         }
 }

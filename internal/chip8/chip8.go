@@ -52,7 +52,7 @@ func Run () {
                 panic(err)
         }
 
-        file ,err := ioutil.ReadFile("../../roms/PONG")
+        file, err := ioutil.ReadFile("../../roms/PONG")
 
         chip8 := Chip8{}
         chip8.ram.Load(file)

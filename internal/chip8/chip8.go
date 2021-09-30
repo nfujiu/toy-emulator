@@ -7,28 +7,25 @@ import (
         "golang.org/x/image/colornames"
 )
 
+const (
+        windowWidth float64 = 640
+        windowHeight float64 = 320
+)
+
+type Chip8 struct {
+        cpu Cpu
+}
+
 func Run () {
         cfg := pixelgl.WindowConfig{
                 Title:  "chip8 Emulator",
-                Bounds: pixel.R(0, 0, 640, 320),
+                Bounds: pixel.R(0, 0, windowWidth, windowHeight),
                 VSync: true,
         }
         win, err := pixelgl.NewWindow(cfg)
         if err != nil {
                 panic(err)
         }
-
-        imd := imdraw.New(nil)
-        imd.Color = pixel.RGB(1, 0, 0)
-        imd.Push(pixel.V(20, 10))
-
-        imd.Color = pixel.RGB(0, 1, 0)
-        imd.Push(pixel.V(80, 10))
-
-        imd.Color = pixel.RGB(0, 0, 1)
-        imd.Push(pixel.V(50, 70))
-
-        imd.Rectangle(0)
 
         for !win.Closed() {
                 win.Clear(colornames.Black)

@@ -17,6 +17,10 @@ func addr(n1 uint8, n2 uint8, n3 uint8) uint16 {
         return uint16(n1) << 8 + uint16(n2) << 4 + uint16(n3)
 }
 
+func value(n1 uint8, n2 uint8) uint8 {
+        return n1 << 4 + n2
+}
+
 type Chip8 struct {
         cpu Cpu
         ram Ram
@@ -34,48 +38,88 @@ func (chip8 *Chip8) tick() {
         var o2 uint8 = chip8.ram.buf[pc] >> 0xf
         var o3 uint8 = chip8.ram.buf[pc+1] >> 4
         var o4 uint8 = chip8.ram.buf[pc+1] >> 0xf
-        println(o1)
-        println(o2)
-        println(o3)
-        println(o4)
 
         // Chip-8 Instruction Set Architecture
         // http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#3.1
         switch o1 {
         case 0x0:
-                println(o1, o2, o3, o4)
+
         case 0x1:
-                chip8.cpu.pc = addr(o2, o3, o4)
+                logger.Debug("1nnn - JP addr")
+                chip8.cpu.Jump(addr(o2, o3, o4))
         case 0x2:
+                logger.Debug("2nnn - CALL addr")
                 chip8.cpu.stack[chip8.cpu.sp] = pc
                 chip8.cpu.sp += 1
-                chip8.cpu.pc = addr(o2, o3, o4)
+                chip8.cpu.Jump(addr(o2, o3, o4))
         case 0x3:
-                println(o1, o2, o3, o4)
+                logger.Debug("3xkk - SE Vx, byte")
+                kk := value(o3, o4)
+                vx := chip8.cpu.v[o2]
+                if kk == vx {
+                        chip8.cpu.Skip()
+                } else {
+                        chip8.cpu.Increment()
+                }
         case 0x4:
-                println(o1, o2, o3, o4)
+                logger.Debug("4xkk - SNE Vx, byte")
+                kk := value(o3, o4)
+                vx := chip8.cpu.v[o2]
+                if kk != vx {
+                        chip8.cpu.Skip()
+                } else {
+                        chip8.cpu.Increment()
+                }
         case 0x5:
-                println(o1, o2, o3, o4)
+                logger.Debug("5xy0 - SE Vx, Vy")
+                vx := chip8.cpu.v[o2]
+                yx := chip8.cpu.v[o3]
+                if vx == yx {
+                        chip8.cpu.Skip()
+                } else {
+                        chip8.cpu.Increment()
+                }
         case 0x6:
-                println(o1, o2, o3, o4)
+                logger.Debug("6xkk - LD Vx, byte")
+                kk := value(o3, o4)
+                chip8.cpu.v[o2] = kk
+                chip8.cpu.Increment()
         case 0x7:
-                println(o1, o2, o3, o4)
+                logger.Debug("7xkk - ADD Vx, byte")
+                kk := value(o3, o4)
+                chip8.cpu.v[o2] = chip8.cpu.v[o2] + kk
+                chip8.cpu.Increment()
         case 0x8:
-                println(o1, o2, o3, o4)
+                switch o4 {
+                case 0x0:
+                        logger.Debug("8xy0 - LD Vx, Vy")
+
+                case 0x1:
+                case 0x2:
+                case 0x3:
+                case 0x4:
+                case 0x5:
+                case 0x6:
+                case 0x7:
+                case 0xE:
+                default:
+                        logger.Debug("Unknown opcode")
+                }
+
         case 0x9:
-                println(o1, o2, o3, o4)
+
         case 0xA:
-                println(o1, o2, o3, o4)
+
         case 0xB:
-                println(o1, o2, o3, o4)
+
         case 0xC:
-                println(o1, o2, o3, o4)
+
         case 0xD:
-                println(o1, o2, o3, o4)
+
         case 0xE:
-                println(o1, o2, o3, o4)
+
         case 0xF:
-                println(o1, o2, o3, o4)
+
         default:
                 logger.Debug("Unknown opcode")
         }
@@ -92,7 +136,28 @@ func (chip8 *Chip8) tick() {
         // Chip-8 Instruction Set Architecture
         // http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#3.1
 
+        logger.Debug("Current pc: %d", chip8.cpu.pc)
         chip8.cpu.Increment()
+}
+
+func (chip8 *Chip8) peepEvent(win *pixelgl.Window) {
+        if win.JustPressed(pixelgl.KeyEscape) {
+                // TODO: replace panic
+                panic(win)
+        }
+
+        if win.JustPressed(pixelgl.Key1) {
+                logger.Debug("Just Pressed Key1")
+        }
+
+        switch true {
+        case win.JustPressed(pixelgl.Key1):
+                chip8.cpu.Key(0x1)
+        case win.JustPressed(pixelgl.Key2):
+                chip8.cpu.Key(0x2)
+        case win.JustPressed(pixelgl.Key3):
+                chip8.cpu.Key(0x3)
+        }
 }
 
 func handle(chip8 Chip8, win *pixelgl.Window) {
@@ -116,6 +181,7 @@ func handle(chip8 Chip8, win *pixelgl.Window) {
                         }
                 }
                 win.Update()
+                chip8.peepEvent(win)
         }
 }
 

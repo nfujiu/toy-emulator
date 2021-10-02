@@ -7,6 +7,7 @@ import (
         "golang.org/x/image/colornames"
         "io/ioutil"
         "math/rand"
+        "time"
 )
 
 const (
@@ -41,6 +42,14 @@ func (chip8 *Chip8) tick() {
         var o3 uint8 = chip8.ram.buf[pc+1] >> 4
         var o4 uint8 = chip8.ram.buf[pc+1] >> 0xf
 
+
+        _opcode := uint16(chip8.ram.buf[pc]) << 8 | uint16(chip8.ram.buf[pc + 1])
+        _decode := _opcode & 0xF000
+
+        _ = _opcode
+        _ = _decode
+
+
         // Chip-8 Instruction Set Architecture
         // http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#3.1
         switch o1 {
@@ -56,7 +65,7 @@ func (chip8 *Chip8) tick() {
                         chip8.cpu.pc = chip8.cpu.stack[chip8.cpu.sp]
                         chip8.cpu.Increment()
                 default:
-                        logger.Debug("Unknown opcode")
+                        panic("Unknown opcode")
                 }
 
         case 0x1:
@@ -161,7 +170,7 @@ func (chip8 *Chip8) tick() {
                         chip8.cpu.v[o2] = chip8.cpu.v[o2] << 1
                         chip8.cpu.Increment()
                 default:
-                        logger.Debug("Unknown opcode")
+                        panic("Unknown opcode")
                 }
 
         case 0x9:
@@ -202,20 +211,22 @@ func (chip8 *Chip8) tick() {
                 switch o3 {
                 case 0x9:
                         logger.Debug("Ex9E - SKP Vx")
-                        if chip8.cpu.key == chip8.cpu.v[o2] {
+                        vx := chip8.cpu.v[o2]
+                        if chip8.cpu.keyboard.keys[vx] == true {
                                 chip8.cpu.Skip()
                         } else {
                                 chip8.cpu.Increment()
                         }
                 case 0xA:
                         logger.Debug("ExA1 - SKNP Vx")
-                        if chip8.cpu.key != chip8.cpu.v[o2] {
+                        vx := chip8.cpu.v[o2]
+                        if chip8.cpu.keyboard.keys[vx] == false {
                                 chip8.cpu.Skip()
                         } else {
                                 chip8.cpu.Increment()
                         }
                 default:
-                        logger.Debug("Unknown opcode")
+                        panic("Unknown opcode")
         }
         case 0xF:
                 opcode := uint16(chip8.ram.buf[pc]) << 8 | uint16(chip8.ram.buf[pc + 1])
@@ -225,7 +236,15 @@ func (chip8 *Chip8) tick() {
                         chip8.cpu.v[o2] = chip8.delay
                 case 0x000A:
                         logger.Debug("Fx0A - LD Vx, K")
-                        if chip8.cpu.key != 0 {
+                        vx := chip8.cpu.v[o2]
+                        KeyPressed := false
+                        for i:= 0; i < len(chip8.cpu.keyboard.keys); i++ {
+                                if chip8.cpu.keyboard.keys[i] == true {
+                                        chip8.cpu.v[vx] = uint8(i)
+                                        KeyPressed = true
+                                }
+                        }
+                        if !KeyPressed {
                                 return
                         }
                         chip8.cpu.Increment()
@@ -262,10 +281,10 @@ func (chip8 *Chip8) tick() {
                         }
                         chip8.cpu.Increment()
                 default:
-                        logger.Debug("Unknown opcode")
+                        panic("Unknown opcode")
                 }
         default:
-                logger.Debug("Unknown opcode")
+                panic("Unknown opcode")
         }
 
         if chip8.delay > 0 {
@@ -287,21 +306,77 @@ func (chip8 *Chip8) tick() {
 
 func (chip8 *Chip8) peepEvent(win *pixelgl.Window) {
         if win.JustPressed(pixelgl.KeyEscape) {
-                // TODO: replace panic
-                panic(win)
-        }
-
-        if win.JustPressed(pixelgl.Key1) {
-                logger.Debug("Just Pressed Key1")
+                win.SetClosed(true)
         }
 
         switch true {
         case win.JustPressed(pixelgl.Key1):
-                chip8.cpu.Key(0x1)
+                chip8.cpu.keyboard.KeyDown(0x0)
         case win.JustPressed(pixelgl.Key2):
-                chip8.cpu.Key(0x2)
+                chip8.cpu.keyboard.KeyDown(0x1)
         case win.JustPressed(pixelgl.Key3):
-                chip8.cpu.Key(0x3)
+                chip8.cpu.keyboard.KeyDown(0x2)
+        case win.JustPressed(pixelgl.Key4):
+                chip8.cpu.keyboard.KeyDown(0x3)
+        case win.JustPressed(pixelgl.KeyQ):
+                chip8.cpu.keyboard.KeyDown(0x4)
+        case win.JustPressed(pixelgl.KeyW):
+                chip8.cpu.keyboard.KeyDown(0x5)
+        case win.JustPressed(pixelgl.KeyE):
+                chip8.cpu.keyboard.KeyDown(0x6)
+        case win.JustPressed(pixelgl.KeyR):
+                chip8.cpu.keyboard.KeyDown(0x7)
+        case win.JustPressed(pixelgl.KeyA):
+                chip8.cpu.keyboard.KeyDown(0x8)
+        case win.JustPressed(pixelgl.KeyS):
+                chip8.cpu.keyboard.KeyDown(0x9)
+        case win.JustPressed(pixelgl.KeyD):
+                chip8.cpu.keyboard.KeyDown(0xA)
+        case win.JustPressed(pixelgl.KeyF):
+                chip8.cpu.keyboard.KeyDown(0xB)
+        case win.JustPressed(pixelgl.KeyZ):
+                chip8.cpu.keyboard.KeyDown(0xC)
+        case win.JustPressed(pixelgl.KeyX):
+                chip8.cpu.keyboard.KeyDown(0xD)
+        case win.JustPressed(pixelgl.KeyC):
+                chip8.cpu.keyboard.KeyDown(0xE)
+        case win.JustPressed(pixelgl.KeyV):
+                chip8.cpu.keyboard.KeyDown(0xF)
+        }
+
+        switch true {
+        case win.JustPressed(pixelgl.Key1):
+                chip8.cpu.keyboard.KeyUp(0x0)
+        case win.JustPressed(pixelgl.Key2):
+                chip8.cpu.keyboard.KeyUp(0x1)
+        case win.JustPressed(pixelgl.Key3):
+                chip8.cpu.keyboard.KeyUp(0x2)
+        case win.JustPressed(pixelgl.Key4):
+                chip8.cpu.keyboard.KeyUp(0x3)
+        case win.JustPressed(pixelgl.KeyQ):
+                chip8.cpu.keyboard.KeyUp(0x4)
+        case win.JustPressed(pixelgl.KeyW):
+                chip8.cpu.keyboard.KeyUp(0x5)
+        case win.JustPressed(pixelgl.KeyE):
+                chip8.cpu.keyboard.KeyUp(0x6)
+        case win.JustPressed(pixelgl.KeyR):
+                chip8.cpu.keyboard.KeyUp(0x7)
+        case win.JustPressed(pixelgl.KeyA):
+                chip8.cpu.keyboard.KeyUp(0x8)
+        case win.JustPressed(pixelgl.KeyS):
+                chip8.cpu.keyboard.KeyUp(0x9)
+        case win.JustPressed(pixelgl.KeyD):
+                chip8.cpu.keyboard.KeyUp(0xA)
+        case win.JustPressed(pixelgl.KeyF):
+                chip8.cpu.keyboard.KeyUp(0xB)
+        case win.JustPressed(pixelgl.KeyZ):
+                chip8.cpu.keyboard.KeyUp(0xC)
+        case win.JustPressed(pixelgl.KeyX):
+                chip8.cpu.keyboard.KeyUp(0xD)
+        case win.JustPressed(pixelgl.KeyC):
+                chip8.cpu.keyboard.KeyUp(0xE)
+        case win.JustPressed(pixelgl.KeyV):
+                chip8.cpu.keyboard.KeyUp(0xF)
         }
 }
 
@@ -326,8 +401,11 @@ func handle(chip8 Chip8, win *pixelgl.Window) {
                                 imd.Draw(win)
                         }
                 }
-                win.Update()
                 chip8.peepEvent(win)
+                win.Update()
+
+                // 60Hz
+                time.Sleep((1000 / 120) * time.Millisecond)
         }
 }
 

@@ -5,8 +5,8 @@ import (
         "github.com/faiface/pixel/imdraw"
         "github.com/faiface/pixel/pixelgl"
         "golang.org/x/image/colornames"
-        "io/ioutil"
         "math/rand"
+        "os"
         "time"
 )
 
@@ -35,31 +35,27 @@ func (chip8 Chip8) dump() bool {
 }
 
 func (chip8 *Chip8) tick() {
-        var pc uint16 =  uint16(0x200) + chip8.cpu.pc
-
-        var o1 uint8 = chip8.ram.buf[pc] >> 4
-        var o2 uint8 = chip8.ram.buf[pc] >> 0xf
-        var o3 uint8 = chip8.ram.buf[pc+1] >> 4
-        var o4 uint8 = chip8.ram.buf[pc+1] >> 0xf
-
+        var pc = chip8.cpu.pc
+        var o1 = chip8.ram.buf[pc] >> 4
+        var o2 = chip8.ram.buf[pc] & 0xf
+        var o3 = chip8.ram.buf[pc+1] >> 4
+        var o4 = chip8.ram.buf[pc+1] & 0xf
 
         _opcode := uint16(chip8.ram.buf[pc]) << 8 | uint16(chip8.ram.buf[pc + 1])
-        _decode := _opcode & 0xF000
 
-        _ = _opcode
-        _ = _decode
-
+        logger.Info("opcode:  0x%x", _opcode)
+        logger.Info("pc: %d", chip8.cpu.pc)
 
         // Chip-8 Instruction Set Architecture
         // http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#3.1
         switch o1 {
         case 0x0:
-                switch o4 {
-                case 0x0:
+                switch _opcode & 0x000F {
+                case 0x0000:
                         logger.Debug("00E0 - CLS")
                         chip8.display.Clear()
                         chip8.cpu.Increment()
-                case 0xE:
+                case 0x000E:
                         logger.Debug("00EE - RET")
                         chip8.cpu.sp -= 1
                         chip8.cpu.pc = chip8.cpu.stack[chip8.cpu.sp]
@@ -73,7 +69,7 @@ func (chip8 *Chip8) tick() {
                 chip8.cpu.Jump(addr(o2, o3, o4))
         case 0x2:
                 logger.Debug("2nnn - CALL addr")
-                chip8.cpu.stack[chip8.cpu.sp] = pc
+                chip8.cpu.stack[chip8.cpu.sp] = chip8.cpu.pc
                 chip8.cpu.sp += 1
                 chip8.cpu.Jump(addr(o2, o3, o4))
         case 0x3:
@@ -114,24 +110,24 @@ func (chip8 *Chip8) tick() {
                 chip8.cpu.v[o2] = chip8.cpu.v[o2] + kk
                 chip8.cpu.Increment()
         case 0x8:
-                switch o4 {
-                case 0x0:
+                switch _opcode & 0x000F {
+                case 0x0000:
                         logger.Debug("8xy0 - LD Vx, Vy")
                         chip8.cpu.v[o2] = chip8.cpu.v[o3]
 						chip8.cpu.Increment()
-                case 0x1:
+                case 0x0001:
                         logger.Debug("8xy1 - OR Vx, Vy")
                         chip8.cpu.v[o2] = chip8.cpu.v[o2] | chip8.cpu.v[o3]
                         chip8.cpu.Increment()
-                case 0x2:
+                case 0x0002:
                         logger.Debug("8xy2 - AND Vx, Vy")
                         chip8.cpu.v[o2] = chip8.cpu.v[o2] & chip8.cpu.v[o3]
                         chip8.cpu.Increment()
-                case 0x3:
+                case 0x0003:
                         logger.Debug("8xy3 - XOR Vx, Vy")
                         chip8.cpu.v[o2] = chip8.cpu.v[o2] ^ chip8.cpu.v[o3]
                         chip8.cpu.Increment()
-                case 0x4:
+                case 0x0004:
                         logger.Debug("8xy4 - ADD Vx, Vy")
                         xy := chip8.cpu.v[o2] + chip8.cpu.v[o3]
                         if xy > 0xff {
@@ -141,7 +137,7 @@ func (chip8 *Chip8) tick() {
                         }
                         chip8.cpu.v[o2] = xy & 0xff
                         chip8.cpu.Increment()
-                case 0x5:
+                case 0x0005:
                         logger.Debug("8xy5 - SUB Vx, Vy")
                         if o3 > o2 {
                                 chip8.cpu.v[0xF] = 0
@@ -150,12 +146,12 @@ func (chip8 *Chip8) tick() {
                         }
                         chip8.cpu.v[o2] = o2 - o3
                         chip8.cpu.Increment()
-                case 0x6:
+                case 0x0006:
                         logger.Debug("8xy6 - SHR Vx {, Vy}")
                         chip8.cpu.v[0xF] = chip8.cpu.v[o2] & 0x1
                         chip8.cpu.v[o2] = chip8.cpu.v[o2] >> 1
                         chip8.cpu.Increment()
-                case 0x7:
+                case 0x0007:
                         logger.Debug("8xy7 - SUBN Vx, Vy")
                         if o3 > o2 {
                                 chip8.cpu.v[0xF] = 1
@@ -164,7 +160,7 @@ func (chip8 *Chip8) tick() {
                         }
                         chip8.cpu.v[o2] = chip8.cpu.v[o3] - chip8.cpu.v[o2]
                         chip8.cpu.Increment()
-                case 0xE:
+                case 0x000E:
                         logger.Debug("8xyE - SHL Vx {, Vy}")
                         chip8.cpu.v[0xF] = chip8.cpu.v[o2] >> 7
                         chip8.cpu.v[o2] = chip8.cpu.v[o2] << 1
@@ -196,20 +192,19 @@ func (chip8 *Chip8) tick() {
         case 0xD:
                 logger.Debug("Dxyn - DRW Vx, Vy, nibble")
                 var sprite [256]uint8
-                for i := uint8(0); i < o4; i++ {
+                for i := uint8(0); i < uint8(o4); i++ {
                         sprite[i] = chip8.ram.buf[int(chip8.cpu.i) + int(i)]
                 }
                 vx := chip8.cpu.v[o2]
                 vy := chip8.cpu.v[o3]
-                collision := chip8.display.Draw(vx, vy, o4, sprite)
+                collision := chip8.display.Draw(vx, vy, uint8(o4), sprite)
                 if collision {
                         chip8.cpu.v[0xF] = 1
                 }
                 chip8.cpu.Increment()
         case 0xE:
-                // FIXME:
-                switch o3 {
-                case 0x9:
+                switch _opcode & 0x00FF {
+                case 0x009E:
                         logger.Debug("Ex9E - SKP Vx")
                         vx := chip8.cpu.v[o2]
                         if chip8.cpu.keyboard.keys[vx] == true {
@@ -217,7 +212,7 @@ func (chip8 *Chip8) tick() {
                         } else {
                                 chip8.cpu.Increment()
                         }
-                case 0xA:
+                case 0x00A1:
                         logger.Debug("ExA1 - SKNP Vx")
                         vx := chip8.cpu.v[o2]
                         if chip8.cpu.keyboard.keys[vx] == false {
@@ -229,11 +224,11 @@ func (chip8 *Chip8) tick() {
                         panic("Unknown opcode")
         }
         case 0xF:
-                opcode := uint16(chip8.ram.buf[pc]) << 8 | uint16(chip8.ram.buf[pc + 1])
-                switch opcode & 0x00FF {
+                switch _opcode & 0x00FF {
                 case 0x0007:
                         logger.Debug("Fx07 - LD Vx, DT")
                         chip8.cpu.v[o2] = chip8.delay
+                        chip8.cpu.Increment()
                 case 0x000A:
                         logger.Debug("Fx0A - LD Vx, K")
                         vx := chip8.cpu.v[o2]
@@ -255,12 +250,15 @@ func (chip8 *Chip8) tick() {
                 case 0x0018:
                         logger.Debug("Fx18 - LD ST, Vx")
                         // FIXME: not implemented
+                        chip8.cpu.Increment()
                 case 0x001E:
                         logger.Debug("Fx1E - ADD I, Vx")
                         chip8.cpu.i = chip8.cpu.i + uint16(chip8.cpu.v[o2])
+                        chip8.cpu.Increment()
                 case 0x0029:
                         logger.Debug("Fx29 - LD F, Vx")
                         chip8.cpu.i = uint16(chip8.cpu.v[o2]) * 0x5
+                        chip8.cpu.Increment()
                 case 0x0033:
                         logger.Debug("Fx33 - LD B, Vx")
                         vx := chip8.cpu.v[o2]
@@ -290,18 +288,6 @@ func (chip8 *Chip8) tick() {
         if chip8.delay > 0 {
                 chip8.delay -= 1
         }
-
-        // opcode := uint16(chip8.ram.buf[pc]) << 8 | uint16(chip8.ram.buf[pc + 1])
-        // decode := opcode & 0xF000
-
-        // switch opcode & 0xF000 {
-        // case 0x6000:
-        //    println(decode)
-        // default:
-        //    println("Unknown opcode: 0x%X\n", opcode)
-        // }
-
-        // logger.Debug("Current pc: %d", chip8.cpu.pc)
 }
 
 func (chip8 *Chip8) peepEvent(win *pixelgl.Window) {
@@ -420,9 +406,13 @@ func Run() {
                 panic(err)
         }
 
-        file, err := ioutil.ReadFile("../../roms/PONG")
+        file, err := os.ReadFile("../../roms/PONG")
 
         chip8 := Chip8{}
+
+        // FIXME: initialize
+        chip8.cpu.pc = uint16(0x200)
+
         chip8.ram.Load(file)
 
         handle(chip8, win)
